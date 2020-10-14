@@ -302,17 +302,19 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
     }
   }
 
-  const keydownEvents = (e, _activePathId) => {
+  const keydownEvents = (e) => {
     if (e.keyCode === 16) {
       setShiftActive(true)
     }
 
-    if (e.keyCode === 13) {
-      setActivityState('create')
-    }
-
-    if (e.keyCode === 8) {
-      deletePath(activePathId)
+    if (activityState === 'selected' && document.activeElement?.type !== 'textarea') {
+      if (e.keyCode === 13) {
+        setActivityState('create')
+      }
+  
+      if (e.keyCode === 8) {
+        deletePath(activePathId)
+      }
     }
   }
 
