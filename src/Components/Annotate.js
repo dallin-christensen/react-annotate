@@ -235,7 +235,6 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
   const [activePathId, setActivePathId] = useState(null)
   const [activityState, setActivityState] = useState('create')
   const [paths, setPaths] = useState({ pathOrder: [] })
-  const [activeTextId, setActiveTextId] = useState(false)
 
   // active path stuff
   const [activeColor, setActiveColor] = useState('red')
@@ -258,8 +257,8 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
     const targetName = e.target.attributes?.name?.value
     const mouseDownOnPath = targetName && paths.hasOwnProperty(targetName)
 
-    setActivePathId(null)
-    setActivityState('create')
+    // setActivePathId(null)
+    // setActivityState('create')
 
     if (activityState === 'create' && !mouseDownOnPath) {
       const id = v1()
@@ -295,18 +294,10 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
     }
   }
 
-  const editText = (textPathId) => {
-    setActiveTextId(textPathId)
-  }
-
   const handleMouseUp = () => {
     if (activityState === 'drag') {
       setActivityState('selected')
       setEndXYForCurrentPath()
-
-      if (paths && activePathId && paths[activePathId] && paths[activePathId].type === 'text') {
-        editText(activePathId)
-      }
     }
   }
 
@@ -317,6 +308,7 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
         && e.target.attributes?.class?.value !== 'resize-handle'
         && e.target.attributes?.class?.value !== 'annotations-textarea'
       ) {
+        console.log('hmmmm')
         setActivityState('create')
       }
     }
@@ -384,8 +376,8 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
   const handleEditText = (e) => {
     const newPaths = {
       ...paths,
-      [activeTextId]: {
-        ...paths[activeTextId],
+      [activePathId]: {
+        ...paths[activePathId],
         textContent: e.target.value,
       }
     }
@@ -405,6 +397,7 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
           fontSize: activeFontSize,
         }
       }
+      console.log({ newPaths })
       setPaths(newPaths)
     }
   }, [activeColor, activeStrokeWidth, activeFontSize, activePathId, activityState])
@@ -612,8 +605,12 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
   }
 
 
-  const handleTextMouseDown = () => {
-    const activePath = paths[activePathId]
+  const handleTextMouseDown = (pathId) => {
+    setActivePathId(pathId)
+
+    console.log({ pathId })
+
+    const activePath = paths[pathId]
 
     const relationaryPos = {
       x1: activePath.x1 - x,
@@ -621,11 +618,14 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
       x2: activePath.x2 - x,
       y2: activePath.y2 - y,
     }
+    
     setTextDragRelationaryPositions(relationaryPos)
     setIsDragginText(true)
+
   }
 
   const handleTextMouseUp = () => {
+    console.log('text mouse up')
     setIsDragginText(false)
   }
 
@@ -688,7 +688,7 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
 
           if (path.type === 'text') {
             pathElement = (
-              <text x={path.x1} y={path.y1} fill={path.color} key={pathId} name={pathId} style={{ fontSize: path.fontSize, cursor: activePathId === pathId ? 'move' : 'text' }} onMouseDown={handleTextMouseDown} onMouseUp={handleTextMouseUp}>{path.textContent}</text>
+              <text x={path.x1} y={path.y1} fill={path.color} key={pathId} name={pathId} style={{ fontSize: path.fontSize, cursor: activePathId === pathId ? 'move' : 'text' }} onMouseDown={() => handleTextMouseDown(pathId)} onMouseUp={handleTextMouseUp}>{path.textContent}</text>
             )
           }
 
@@ -720,8 +720,8 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
           ? (
             <textarea
               className='annotations-textarea'
-              style={{ position: 'absolute', left: paths[activeTextId].pageX1, top: paths[activeTextId].pageY1 + 20 }}
-              value={paths[activeTextId].textContent}
+              style={{ position: 'absolute', left: paths[activePathId].pageX1, top: paths[activePathId].pageY1 + 20 }}
+              value={paths[activePathId].textContent}
               onChange={handleEditText}
             />
           )
