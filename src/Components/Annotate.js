@@ -49,6 +49,8 @@ const SelectionBox = ({
   adjustE,
   adjustS,
   adjustW,
+  adjustX1Y1,
+  adjustX2Y2,
   move,
   hideHandles,
 }) => {
@@ -65,6 +67,11 @@ const SelectionBox = ({
 
   const topY = activePath.pageY1 < activePath.pageY2 ? activePath.pageY1 : activePath.pageY2
   const bottomY = activePath.pageY1 > activePath.pageY2 ? activePath.pageY1 : activePath.pageY2
+
+  const positiveSlope = (activePath.pageY1 > activePath.pageY2 && activePath.pageX1 > activePath.pageX2)
+    || (activePath.pageY2 > activePath.pageY1 && activePath.pageX2 > activePath.pageX1)
+      ? true
+      : false
 
 
   const calculateDragRelationaryPositions = () => {
@@ -126,6 +133,14 @@ const SelectionBox = ({
         adjustW()
         break;
 
+      case 'annotation-x1-y1':
+        adjustX1Y1()
+        break;
+
+      case 'annotation-x2-y2':
+        adjustX2Y2()
+        break;
+
       case 'selection-box':
         move(dragRelationaryPositions)
         break;
@@ -137,6 +152,7 @@ const SelectionBox = ({
 
 
   return (
+    <>
     <div
       id='selection-box'
       onMouseDown={handleMouseDown}
@@ -155,7 +171,7 @@ const SelectionBox = ({
       }}
     >
       {
-        !hideHandles
+        !hideHandles && activePath.type !== 'line'
           ? (
             <>
               <div id='annotation-nw' className='resize-handle' style={{ ...handleStyles, top: '-5px', left: '-5px', cursor: 'nwse-resize' }} onMouseDown={handleMouseDown} onMouseUp={handleMouseUp} />
@@ -173,6 +189,39 @@ const SelectionBox = ({
           : null
       }
     </div>
+          {
+            !hideHandles && activePath.type === 'line'
+              ? (
+                <>
+                  <div
+                    id={'annotation-x1-y1'}
+                    className='resize-handle'
+                    onMouseDown={handleMouseDown}
+                    onMouseUp={handleMouseUp}
+                    style={{
+                      ...handleStyles,
+                      top: activePath.pageY1 - 6,
+                      left: activePath.pageX1 - 6,
+                      cursor: 'move'
+                    }}
+                  />
+                  <div
+                    id={'annotation-x2-y2'}
+                    className='resize-handle'
+                    onMouseDown={handleMouseDown}
+                    onMouseUp={handleMouseUp}
+                    style={{
+                      ...handleStyles,
+                      top: activePath.pageY2 - 6,
+                      left: activePath.pageX2 - 6,
+                      cursor: 'move'
+                    }}
+                    />
+                </>
+              )
+              : null
+          }
+        </>
   )
 }
 
@@ -262,8 +311,12 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
 
   useEffect(() => {
     const deactiveatePaths = (e) => {
-      // console.log(e.target.attributes.class.value)
-      if (!svgRef.current.contains(e.target) && e.target.id !== 'selection-box' && e.target.attributes?.class?.value !== 'resize-handle') {
+      console.log(e.target.attributes?.class?.value)
+      if (!svgRef.current.contains(e.target)
+        && e.target.id !== 'selection-box'
+        && e.target.attributes?.class?.value !== 'resize-handle'
+        && e.target.attributes?.class?.value !== 'annotations-textarea'
+      ) {
         setActivityState('create')
       }
     }
@@ -508,6 +561,36 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
     setPaths(newPaths)
   }
 
+  const adjustX1Y1 = () => {
+    const newPaths = {
+      ...paths,
+      [activePathId]: {
+        ...paths[activePathId],
+        x1: x,
+        y1: y,
+        pageX1: pageX,
+        pageY1: pageY,
+      }
+    }
+
+    setPaths(newPaths)
+  }
+
+  const adjustX2Y2 = () => {
+    const newPaths = {
+      ...paths,
+      [activePathId]: {
+        ...paths[activePathId],
+        x2: x,
+        y2: y,
+        pageX2: pageX,
+        pageY2: pageY,
+      }
+    }
+
+    setPaths(newPaths)
+  }
+
   const moveSelection = (dragRelationaryPositions) => {
 
     const newPaths = {
@@ -561,6 +644,7 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
           display: 'flex',
           height: imgRef?.current?.getBoundingClientRect?.()?.height,
           width: imgRef?.current?.getBoundingClientRect?.()?.width,
+          cursor: activityState === 'create' ? 'crosshair' : 'auto'
         }}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
@@ -580,7 +664,7 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
             const height = Math.abs(path.y2 - path.y1)
     
             pathElement = (
-              <ellipse cx={`${avgX}`} cy={`${avgY}`} rx={width - (width/2)} ry={height - (height/2)} key={pathId} name={pathId} fill='transparent' stroke={path.color} strokeWidth={`${path.strokeWidth}px`} />
+              <ellipse cx={`${avgX}`} cy={`${avgY}`} rx={width - (width/2)} ry={height - (height/2)} key={pathId} name={pathId} fill='transparent' stroke={path.color} strokeWidth={`${path.strokeWidth}px`} style={{ cursor: activityState === 'create' ? 'pointer' : 'auto' }} />
             )
           }
 
@@ -592,13 +676,13 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
             const height = Math.abs(path.y2 - path.y1)
     
             pathElement = (
-              <rect x={left} y={top} width={width} height={height} key={pathId} name={pathId} fill='transparent' stroke={path.color} strokeWidth={`${path.strokeWidth}px`} />
+              <rect x={left} y={top} width={width} height={height} key={pathId} name={pathId} fill='transparent' stroke={path.color} strokeWidth={`${path.strokeWidth}px`} style={{ cursor: activityState === 'create' ? 'pointer' : 'auto' }} />
             )
           }
 
           if (path.type === 'line') {
             pathElement = (
-              <line x1={path.x1} y1={path.y1} x2={path.x2} y2={path.y2} key={pathId} name={pathId} fill='transparent' stroke={path.color} strokeWidth={`${path.strokeWidth}px`} />
+              <line x1={path.x1} y1={path.y1} x2={path.x2} y2={path.y2} key={pathId} name={pathId} fill='transparent' stroke={path.color} strokeWidth={`${path.strokeWidth}px`} style={{ cursor: activityState === 'create' ? 'pointer' : 'auto' }} />
             )
           }
 
@@ -635,6 +719,7 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
         activityState === 'selected' && paths[activePathId].type === 'text'
           ? (
             <textarea
+              className='annotations-textarea'
               style={{ position: 'absolute', left: paths[activeTextId].pageX1, top: paths[activeTextId].pageY1 + 20 }}
               value={paths[activeTextId].textContent}
               onChange={handleEditText}
@@ -657,6 +742,8 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
               adjustE={adjustE}
               adjustS={adjustS}
               adjustW={adjustW}
+              adjustX1Y1={adjustX1Y1}
+              adjustX2Y2={adjustX2Y2}
               move={moveSelection}
               hideHandles={paths[activePathId].type === 'text'}
             />
