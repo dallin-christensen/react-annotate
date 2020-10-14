@@ -55,6 +55,7 @@ const SelectionBox = ({
   move,
   hideHandles,
 }) => {
+
   const [isDragging, setIsDragging] = useState('')
   const [dragRelationaryPositions, setDragRelationaryPositions] = useState({
     x1: 0,
@@ -62,43 +63,6 @@ const SelectionBox = ({
     x2: 0,
     y2: 0,
   })
-
-  const leftX = activePath.pageX1 < activePath.pageX2 ? activePath.pageX1 : activePath.pageX2
-  const rightX = activePath.pageX1 > activePath.pageX2 ? activePath.pageX1 : activePath.pageX2
-
-  const topY = activePath.pageY1 < activePath.pageY2 ? activePath.pageY1 : activePath.pageY2
-  const bottomY = activePath.pageY1 > activePath.pageY2 ? activePath.pageY1 : activePath.pageY2
-
-  const positiveSlope = (activePath.pageY1 > activePath.pageY2 && activePath.pageX1 > activePath.pageX2)
-    || (activePath.pageY2 > activePath.pageY1 && activePath.pageX2 > activePath.pageX1)
-      ? true
-      : false
-
-
-  const calculateDragRelationaryPositions = () => {
-    const relationaryPos = {
-      x1: activePath.x1 - x,
-      y1: activePath.y1 - y,
-      x2: activePath.x2 - x,
-      y2: activePath.y2 - y,
-    }
-    setDragRelationaryPositions(relationaryPos)
-  }
-
-  const handleMouseDown = (e) => {
-    calculateDragRelationaryPositions()
-    setIsDragging(e.target.id)
-  }
-
-  const handleMouseUp = (e) => {
-    setIsDragging('')
-  }
-
-  useEffect(() => {
-    window.addEventListener('mouseup', handleMouseUp);
-
-    return () => window.removeEventListener('mouseup', handleMouseUp);
-  }, [])
 
   useEffect(() => {
     switch (isDragging) {
@@ -151,6 +115,42 @@ const SelectionBox = ({
     }
   }, [x, y, isDragging])
 
+  useEffect(() => {
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => window.removeEventListener('mouseup', handleMouseUp);
+  }, [])
+
+
+  if (!activePath) return null
+
+
+  const leftX = activePath.pageX1 < activePath.pageX2 ? activePath.pageX1 : activePath.pageX2
+  const rightX = activePath.pageX1 > activePath.pageX2 ? activePath.pageX1 : activePath.pageX2
+
+  const topY = activePath.pageY1 < activePath.pageY2 ? activePath.pageY1 : activePath.pageY2
+  const bottomY = activePath.pageY1 > activePath.pageY2 ? activePath.pageY1 : activePath.pageY2
+
+
+  const calculateDragRelationaryPositions = () => {
+    const relationaryPos = {
+      x1: activePath.x1 - x,
+      y1: activePath.y1 - y,
+      x2: activePath.x2 - x,
+      y2: activePath.y2 - y,
+    }
+    setDragRelationaryPositions(relationaryPos)
+  }
+
+  const handleMouseDown = (e) => {
+    calculateDragRelationaryPositions()
+    setIsDragging(e.target.id)
+  }
+
+  const handleMouseUp = (e) => {
+    setIsDragging('')
+  }
+
 
   return (
     <>
@@ -172,7 +172,7 @@ const SelectionBox = ({
       }}
     >
       {
-        !hideHandles && activePath.type !== 'line'
+        !hideHandles && activePath?.type !== 'line'
           ? (
             <>
               <div id='annotation-nw' className='resize-handle' style={{ ...handleStyles, top: '-5px', left: '-5px', cursor: 'nwse-resize' }} onMouseDown={handleMouseDown} onMouseUp={handleMouseUp} />
@@ -191,7 +191,7 @@ const SelectionBox = ({
       }
     </div>
           {
-            !hideHandles && activePath.type === 'line'
+            !hideHandles && activePath?.type === 'line'
               ? (
                 <>
                   <div
@@ -235,6 +235,7 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
   const [activePathId, setActivePathId] = useState(null)
   const [activityState, setActivityState] = useState('create')
   const [paths, setPaths] = useState({ pathOrder: [] })
+  const [shiftActive, setShiftActive] = useState(false)
 
   // active path stuff
   const [activeColor, setActiveColor] = useState('red')
@@ -301,6 +302,26 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
     }
   }
 
+  const keydownEvents = (e, _activePathId) => {
+    if (e.keyCode === 16) {
+      setShiftActive(true)
+    }
+
+    if (e.keyCode === 13) {
+      setActivityState('create')
+    }
+
+    if (e.keyCode === 8) {
+      deletePath(activePathId)
+    }
+  }
+
+  const keyupEvents = (e) => {
+    if (e.keyCode === 16) {
+      setShiftActive(false)
+    }
+  }
+
   useEffect(() => {
     const deactiveatePaths = (e) => {
       if (!svgRef.current.contains(e.target)
@@ -308,24 +329,57 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
         && e.target.attributes?.class?.value !== 'resize-handle'
         && e.target.attributes?.class?.value !== 'annotations-textarea'
       ) {
-        console.log('hmmmm')
         setActivityState('create')
       }
     }
     window.addEventListener('mousedown', deactiveatePaths);
 
-    return () => window.removeEventListener('mousedown', deactiveatePaths);
-  }, [])
+    window.addEventListener('keydown', keydownEvents)
+    window.addEventListener('keyup', keyupEvents)
+
+    return () => {
+      window.removeEventListener('mousedown', deactiveatePaths);
+      window.removeEventListener('keydown', keydownEvents)
+      window.removeEventListener('keyup', keyupEvents)
+    }
+  }, [activityState, activePathId])
 
   const setEndXYForCurrentPath = () => {
+    const activePath = paths[activePathId]
+    
+    const xDiff = Math.abs(x - activePath.x1)
+    const yDiff = Math.abs(y - activePath.y1)
+
+    const leastVal = xDiff < yDiff ? xDiff : yDiff
+
+    let quadrant = 'one'
+
+    if (x > activePath.x1 && y > activePath.y1) quadrant = 'one'
+    else if (x < activePath.x1 && y > activePath.y1) quadrant = 'two'
+    else if (x < activePath.x1 && y < activePath.y1) quadrant = 'three'
+    else if (x > activePath.x1 && y < activePath.y1) quadrant = 'four'
+
+    const calcShiftActiveX = (x1Val) => {
+      return quadrant === 'one' || quadrant === 'four'
+        ? x1Val + leastVal
+        : x1Val - leastVal
+    }
+
+    const calcShiftActiveY = (y1Val) => {
+      return quadrant === 'one' || quadrant === 'two'
+        ? y1Val + leastVal
+        : y1Val - leastVal
+    }
+
+
     const newPaths = {
       ...paths,
       [activePathId]: {
         ...paths[activePathId],
-        x2: x,
-        y2: y,
-        pageX2: pageX,
-        pageY2: pageY,
+        x2: shiftActive ? calcShiftActiveX(activePath.x1) : x,
+        y2: shiftActive ? calcShiftActiveY(activePath.y1) : y,
+        pageX2: shiftActive ? calcShiftActiveX(activePath.pageX1) : pageX,
+        pageY2: shiftActive ? calcShiftActiveY(activePath.pageY1) : pageY,
       }
     }
 
@@ -337,7 +391,7 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
     if(activityState === 'drag') {
       setEndXYForCurrentPath()
     }
-  }, [x, y, activityState])
+  }, [x, y, activityState, shiftActive])
 
 
   const undo = () => {
@@ -397,7 +451,6 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
           fontSize: activeFontSize,
         }
       }
-      console.log({ newPaths })
       setPaths(newPaths)
     }
   }, [activeColor, activeStrokeWidth, activeFontSize, activePathId, activityState])
@@ -608,8 +661,6 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
   const handleTextMouseDown = (pathId) => {
     setActivePathId(pathId)
 
-    console.log({ pathId })
-
     const activePath = paths[pathId]
 
     const relationaryPos = {
@@ -625,7 +676,6 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
   }
 
   const handleTextMouseUp = () => {
-    console.log('text mouse up')
     setIsDragginText(false)
   }
 
@@ -656,7 +706,7 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
           let pathElement
 
 
-          if (path.type === 'ellipse') {
+          if (path?.type === 'ellipse') {
             const avgX = (path.x2 + path.x1)/2
             const avgY = (path.y2 + path.y1)/2
     
@@ -668,7 +718,7 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
             )
           }
 
-          if (path.type === 'rect') {
+          if (path?.type === 'rect') {
             const left = path.x1 < path.x2 ? path.x1 : path.x2
             const top = path.y1 < path.y2 ? path.y1 : path.y2
     
@@ -680,13 +730,13 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
             )
           }
 
-          if (path.type === 'line') {
+          if (path?.type === 'line') {
             pathElement = (
               <line x1={path.x1} y1={path.y1} x2={path.x2} y2={path.y2} key={pathId} name={pathId} fill='transparent' stroke={path.color} strokeWidth={`${path.strokeWidth}px`} style={{ cursor: activityState === 'create' ? 'pointer' : 'auto' }} />
             )
           }
 
-          if (path.type === 'text') {
+          if (path?.type === 'text') {
             pathElement = (
               <text x={path.x1} y={path.y1} fill={path.color} key={pathId} name={pathId} style={{ fontSize: path.fontSize, cursor: activePathId === pathId ? 'move' : 'text' }} onMouseDown={() => handleTextMouseDown(pathId)} onMouseUp={handleTextMouseUp}>{path.textContent}</text>
             )
@@ -716,7 +766,7 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
         })
       }
       {
-        activityState === 'selected' && paths[activePathId].type === 'text'
+        activityState === 'selected' && paths[activePathId]?.type === 'text'
           ? (
             <textarea
               className='annotations-textarea'
@@ -745,7 +795,7 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
               adjustX1Y1={adjustX1Y1}
               adjustX2Y2={adjustX2Y2}
               move={moveSelection}
-              hideHandles={paths[activePathId].type === 'text'}
+              hideHandles={paths[activePathId]?.type === 'text'}
             />
           )
           : null
