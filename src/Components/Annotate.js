@@ -311,7 +311,6 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
 
   useEffect(() => {
     const deactiveatePaths = (e) => {
-      console.log(e.target.attributes?.class?.value)
       if (!svgRef.current.contains(e.target)
         && e.target.id !== 'selection-box'
         && e.target.attributes?.class?.value !== 'resize-handle'
