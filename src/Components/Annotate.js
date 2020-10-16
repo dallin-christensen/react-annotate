@@ -303,9 +303,6 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
   }
 
   const keydownEvents = (e) => {
-    if (e.keyCode === 16) {
-      setShiftActive(true)
-    }
 
     if (activityState === 'selected' && document.activeElement?.type !== 'textarea') {
       if (e.keyCode === 13) {
@@ -318,14 +315,10 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
     }
   }
 
-  const keyupEvents = (e) => {
-    if (e.keyCode === 16) {
-      setShiftActive(false)
-    }
-  }
-
   useEffect(() => {
     const deactiveatePaths = (e) => {
+      if (e.shiftKey) setShiftActive(true)
+
       if (!svgRef.current.contains(e.target)
         && e.target.id !== 'selection-box'
         && e.target.attributes?.class?.value !== 'resize-handle'
@@ -334,15 +327,19 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
         setActivityState('create')
       }
     }
+
+    const setShiftInactive = () => setShiftActive(false)
+
     window.addEventListener('mousedown', deactiveatePaths);
+    window.addEventListener('mouseup', setShiftInactive);
 
     window.addEventListener('keydown', keydownEvents)
-    window.addEventListener('keyup', keyupEvents)
 
     return () => {
       window.removeEventListener('mousedown', deactiveatePaths);
+      window.removeEventListener('mouseup', setShiftInactive);
+
       window.removeEventListener('keydown', keydownEvents)
-      window.removeEventListener('keyup', keyupEvents)
     }
   }, [activityState, activePathId])
 
