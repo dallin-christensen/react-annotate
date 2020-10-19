@@ -18,7 +18,7 @@ function App() {
       alignItems: 'center',
     }}>
       <div style={{ width: 800, height: 500, display: 'flex', justifyContent: 'center', flexDirection: 'column', alignItems: 'center' }}>
-        <ReactAnnotate imgSrc={src} imgStyles={{ height: 500 }}>
+        <ReactAnnotate imgSrc={src} imgStyles={{ height: 500 }} onSave={(uri) => console.log({ uri })}>
           {({
             activeColor,
             activeStrokeWidth,
@@ -37,6 +37,7 @@ function App() {
               <label for="type">Type:</label>
               <select name='type' value={activeType} onChange={(e) => setActiveType(e.target.value)}>
                 <option value='line'>line</option>
+                <option value='arrow'>arrow</option>
                 <option value='rect'>rect</option>
                 <option value='ellipse'>ellipse</option>
                 <option value='text'>text</option>

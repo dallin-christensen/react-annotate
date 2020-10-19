@@ -1,7 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { saveSvgAsPng } from 'save-svg-as-png'
-import { v1, v4 } from 'uuid'
+import { svgAsDataUri } from 'save-svg-as-png'
+import { v1 } from 'uuid'
 
 
 const useMousePosition = () => {
@@ -151,6 +151,8 @@ const SelectionBox = ({
     setIsDragging('')
   }
 
+  const isLineType = activePath?.type === 'line' || activePath?.type === 'arrow'
+
 
   return (
     <>
@@ -172,7 +174,7 @@ const SelectionBox = ({
       }}
     >
       {
-        !hideHandles && activePath?.type !== 'line'
+        !hideHandles && !isLineType
           ? (
             <>
               <div id='annotation-nw' className='resize-handle' style={{ ...handleStyles, top: '-5px', left: '-5px', cursor: 'nwse-resize' }} onMouseDown={handleMouseDown} onMouseUp={handleMouseUp} />
@@ -191,7 +193,7 @@ const SelectionBox = ({
       }
     </div>
           {
-            !hideHandles && activePath?.type === 'line'
+            !hideHandles && isLineType
               ? (
                 <>
                   <div
@@ -227,7 +229,7 @@ const SelectionBox = ({
 }
 
 
-const Annotate = ({ children, imgSrc, imgStyles }) => {
+const Annotate = ({ children, imgSrc, imgStyles, onSave }) => {
   const svgRef = useRef()
   const imgRef = useRef()
   const { x, y, pageX, pageY } = useSvgMousePosition(svgRef)
@@ -299,6 +301,12 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
     if (activityState === 'drag') {
       setActivityState('selected')
       setEndXYForCurrentPath()
+
+      // if path stopped in the same spot it started, delete it
+      const activePath = paths[activePathId]
+      if (activePath.x1 === activePath.x2 && activePath.y1 === activePath.y2) {
+        deletePath(activePathId)
+      }
     }
   }
 
@@ -421,9 +429,9 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
     setPaths(newPaths)
   }
 
-  const save = () => {
-    // will need to re-write this
-    saveSvgAsPng(document.querySelector('#svg-board'), `${v4()}.png`)
+  const save = async () => {
+    const uri = await svgAsDataUri(document.querySelector('#svg-board'))
+    onSave(uri)
   }
 
   const handleEditText = (e) => {
@@ -732,6 +740,19 @@ const Annotate = ({ children, imgSrc, imgStyles }) => {
           if (path?.type === 'line') {
             pathElement = (
               <line x1={path.x1} y1={path.y1} x2={path.x2} y2={path.y2} key={pathId} name={pathId} fill='transparent' stroke={path.color} strokeWidth={`${path.strokeWidth}px`} style={{ cursor: activityState === 'create' ? 'pointer' : 'auto' }} />
+            )
+          }
+
+          if (path.type === 'arrow') {
+            pathElement = (
+              <>
+                <defs>
+                  <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto" fill='red'>
+                    <polygon points="0 0, 10 3.5, 0 7" fill='red' />
+                  </marker>
+                </defs>
+                <line x1={path.x1} y1={path.y1} x2={path.x2} y2={path.y2} key={pathId} name={pathId} fill='transparent' stroke={path.color} strokeWidth={`${path.strokeWidth}px`} style={{ cursor: activityState === 'create' ? 'pointer' : 'auto' }} marker-end="url(#arrowhead)" />
+              </>
             )
           }
 
