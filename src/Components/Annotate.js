@@ -302,9 +302,9 @@ const Annotate = ({ children, imgSrc, imgStyles, onSave }) => {
       setActivityState('selected')
       setEndXYForCurrentPath()
 
-      // if path stopped in the same spot it started, delete it
+      // if path stopped in the same spot it started, and path type is not text, delete it
       const activePath = paths[activePathId]
-      if (activePath.x1 === activePath.x2 && activePath.y1 === activePath.y2) {
+      if (activePath.type !== 'text' && activePath.x1 === activePath.x2 && activePath.y1 === activePath.y2) {
         deletePath(activePathId)
       }
     }
